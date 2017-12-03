@@ -83,10 +83,12 @@ public class KeyManager {
 	}
 
 	private PublicKey loadPublicKeyFromFile(String infile) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-		Path path = Paths.get(infile);
-		byte[] bytes = Files.readAllBytes(path);
+		byte[] bytes = readAllBytesFrom(infile);
+		PublicKey pub = generatePublicKey(bytes);
+		return pub;
+	}
 
-		/* Generate public key. */
+	private PublicKey generatePublicKey(byte[] bytes) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		X509EncodedKeySpec ks = new X509EncodedKeySpec(bytes);
 		KeyFactory kf = KeyFactory.getInstance("RSA");
 		PublicKey pub = kf.generatePublic(ks);
@@ -94,16 +96,21 @@ public class KeyManager {
 	}
 
 	private PrivateKey loadPrivateKeyFromFile(String infile) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-		/* Read all bytes from the private key file */
-		Path path = Paths.get(infile);
-		byte[] bytes = Files.readAllBytes(path);
+		byte[] bytes = readAllBytesFrom(infile);
+		PrivateKey pvt = generatePrivateKey(bytes);
+		return pvt;
+	}
 
-		/* Generate private key. */
+	private PrivateKey generatePrivateKey(byte[] bytes) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		PKCS8EncodedKeySpec ks = new PKCS8EncodedKeySpec(bytes);
 		KeyFactory kf = KeyFactory.getInstance("RSA");
 		PrivateKey pvt = kf.generatePrivate(ks);
 		return pvt;
 	}
-	
-	
+
+	private byte[] readAllBytesFrom(String infile) throws IOException {
+		Path path = Paths.get(infile);
+		byte[] bytes = Files.readAllBytes(path);
+		return bytes;
+	}
 }
