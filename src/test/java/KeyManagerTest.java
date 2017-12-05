@@ -1,13 +1,16 @@
 import static org.junit.Assert.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -132,11 +135,50 @@ public class KeyManagerTest {
 		buildFileName();
 		km.generate();
 		assignKeys();
-		km.saveToFile(filename);
+		km.saveToPemFile(filename);
 		km = new KeyManager();
-		km.loadFromFile(filename);
+		km.loadFromPemFile(filename);
 		assertEquals(privateKey, km.getKeyPair().getPrivate());
 		assertEquals(publicKey, km.getKeyPair().getPublic());
+	}
+	
+	@Test
+	public void encodedToString() {
+		km.generate();
+		assignKeys();
+		
+		assertTrue(publicKey != null);
+		String pub;
+		String pvt;
+		try {
+			pub = km.encodedPublicKeyToString();
+			System.out.println(pub);
+			assertTrue(pub.startsWith(KeyManager.BEGIN_RSA_PUBLIC_KEY));
+
+			pvt = km.encodedPrivateKeyToString();
+			assertTrue(pvt.startsWith(KeyManager.BEGIN_RSA_PRIVATE_KEY));
+
+			km.createKeyPairFrom(publicKey, null);
+			pvt = km.encodedPrivateKeyToString();
+
+			km.createKeyPairFrom(null, privateKey);
+			pub = km.encodedPublicKeyToString();
+
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	@Test
+	public void createKeyPairFromKeys() {
+		km.generate();
+		assignKeys();
+		km = new KeyManager();
+		km.createKeyPairFrom(publicKey, privateKey);
+		assertEquals(publicKey, km.getKeyPair().getPublic());
+		assertEquals(privateKey, km.getKeyPair().getPrivate());
 	}
 	
 	@Test
@@ -154,9 +196,9 @@ public class KeyManagerTest {
 		assertEquals(publicKey, km.getKeyPair().getPublic());
 		RSAPrivateKey rpk = (RSAPrivateKey) privateKey;
 		assertEquals(rpk.getPrivateExponent(), km.getRSAPrivateKey().getPrivateExponent());
-		System.out.println("modulus " + modulus);
-		System.out.println("public Exponent " + pubexp);
-		System.out.println("private Exponent " + prvexp);
+		// System.out.println("modulus " + modulus);
+		// System.out.println("public Exponent " + pubexp);
+		// System.out.println("private Exponent " + prvexp);
 	}
 	
 }

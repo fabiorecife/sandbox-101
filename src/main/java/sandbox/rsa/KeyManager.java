@@ -1,10 +1,12 @@
 package sandbox.rsa;
 
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Writer;
 import java.math.BigInteger;
 import java.nio.file.Files;
@@ -27,10 +29,18 @@ import java.util.Base64;
 
 
 public class KeyManager {
-	private Base64.Encoder encoder = Base64.getEncoder();
 	
+	public static final String BEGIN_RSA_PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----";
+	public static final String END_RSA_PRIVATE_KEY = "-----END RSA PRIVATE KEY-----";
+	public static final String BEGIN_RSA_PUBLIC_KEY = "-----BEGIN RSA PUBLIC KEY-----";
+	public static final String END_RSA_PUBLIC_KEY = "-----END RSA PUBLIC KEY-----";
+
+	private Base64.Encoder encoder = Base64.getEncoder();
+	private Base64.Decoder decoder = Base64.getDecoder();
 	private KeyPair keyPair;
 	
+	
+
 	public void generate() {
 		tryGenerate();
 	}
@@ -127,6 +137,25 @@ public class KeyManager {
 		return bytes;
 	}
 
+
+	private byte[] readAllBytesFromPemFile(String infile) throws IOException {
+		Path path = Paths.get(infile);
+		if (!path.toFile().exists()) return null;
+		//byte[] bytes = Files.readAllBytes(path);
+		String pemFile = String.join("", Files.readAllLines(path));
+		pemFile = removeHeaderAndTailStrings(pemFile);
+		return decoder.decode(pemFile);
+	}
+
+	private String removeHeaderAndTailStrings(String pemFile) {
+		return pemFile
+				.replace(BEGIN_RSA_PRIVATE_KEY, "")
+				.replace(END_RSA_PRIVATE_KEY, "")
+				.replace(BEGIN_RSA_PUBLIC_KEY, "")
+				.replace(END_RSA_PUBLIC_KEY, "")
+				.replace("\n", "");
+	}
+
 	public RSAPublicKey getRSAPublicKey() {
 		return (RSAPublicKey) getKeyPair().getPublic();
 	}
@@ -164,26 +193,114 @@ public class KeyManager {
 		}
 		
 	}
+
 	private void doSaveToPemFile(String filename) throws IOException {
 		
 		PrivateKey pvt = getKeyPair().getPrivate();
 		if (pvt != null) {
 			try (Writer out = new FileWriter(filename + ".key")) {
-				out.write("-----BEGIN RSA PRIVATE KEY-----\n");
+				out.write(BEGIN_RSA_PRIVATE_KEY+"\n");
 				out.write(encoder.encodeToString(pvt.getEncoded()));
-				out.write("\n-----END RSA PRIVATE KEY-----\n");
+				out.write("\n"+END_RSA_PRIVATE_KEY+"\n");
 			}
 		}
 		
 		PublicKey pub = getKeyPair().getPublic();
 		if (pub != null) {
 			try (Writer out = new FileWriter(filename + ".pub")) {
-				out.write("-----BEGIN RSA PUBLIC KEY-----\n");
+				out.write(BEGIN_RSA_PUBLIC_KEY+"\n");
 				out.write(encoder.encodeToString(pub.getEncoded()));
-				out.write("\n-----END RSA PUBLIC KEY-----\n");
+				out.write("\n"+END_RSA_PUBLIC_KEY+"\n");
 			}
 		}
 	}
+
+	public void loadFromPemFile(String filename) {
+		tryLoadFromPemFile(filename);
+		
+	}
+
+	private void tryLoadFromPemFile(String infile) {
+		try {
+			PrivateKey pk = loadPrivateKeyFromPemFile(infile + ".key");
+			PublicKey pub = loadPublicKeyFromPemFile(infile + ".pub");
+			keyPair = new KeyPair(pub, pk);
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+
+	private PublicKey loadPublicKeyFromPemFile(String infile) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+		byte[] bytes = readAllBytesFromPemFile(infile);
+		if (bytes == null) return null;
+		PublicKey pub = generatePublicKey(bytes);
+		return pub;
+	}
+
+	private PrivateKey loadPrivateKeyFromPemFile(String infile) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+		byte[] bytes = readAllBytesFromPemFile(infile);
+		if (bytes == null) return null;
+		PrivateKey pvt = generatePrivateKey(bytes);
+		return pvt;
+	}
+
+	public String encodedPublicKeyToString() throws IOException {
+		String result = "";
+		PublicKey pub = getKeyPair().getPublic();
+		if (pub != null) {
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
+					Writer out = new PrintWriter(baos)) {
+				out.write(BEGIN_RSA_PUBLIC_KEY+"\n");
+				out.write(encoder.encodeToString(pub.getEncoded()));
+				out.write("\n"+END_RSA_PUBLIC_KEY+"\n");
+				out.flush();
+				byte[] bytes = baos.toByteArray();
+				result = new String(bytes,"UTF-8");
+			}
+		}
+		
+		return result;
+	}
 	
+	public String encodedPrivateKeyToString() throws IOException {
+		String result = "";
+		PrivateKey pvt = getKeyPair().getPrivate();
+		if (pvt != null) {
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
+					Writer out = new PrintWriter(baos)) {
+				out.write(BEGIN_RSA_PRIVATE_KEY+"\n");
+				out.write(encoder.encodeToString(pvt.getEncoded()));
+				out.write("\n"+END_RSA_PRIVATE_KEY+"\n");
+				out.flush();
+				result = new String(baos.toByteArray(),"UTF-8");
+			}
+		}
+		
+		return result;
+	}
+
+	public void createKeyPairFrom(PublicKey publicKey, PrivateKey privateKey) {
+		KeyPair kp = new KeyPair(publicKey, privateKey);
+		this.keyPair = kp;
+	}
+
+	public void createKeyPairFrom(String pub, String pvt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+		PrivateKey privateKey = null;
+		PublicKey publicKey = null;
+		
+		if (pub != null) {
+			String stringPublicKey = removeHeaderAndTailStrings(pub);
+			publicKey = generatePublicKey(decoder.decode(stringPublicKey));
+		}
+		
+		if (pvt != null) {
+			String stringPrivateKey = removeHeaderAndTailStrings(pvt);
+			privateKey = generatePrivateKey(decoder.decode(stringPrivateKey));
+		}
+		
+		createKeyPairFrom(publicKey, privateKey);
+	}
 	
 }
