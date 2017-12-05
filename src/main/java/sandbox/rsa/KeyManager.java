@@ -3,7 +3,9 @@ package sandbox.rsa;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,9 +27,9 @@ import java.util.Base64;
 
 
 public class KeyManager {
-	Base64.Encoder encoder = Base64.getEncoder();
+	private Base64.Encoder encoder = Base64.getEncoder();
 	
-	KeyPair keyPair;
+	private KeyPair keyPair;
 	
 	public void generate() {
 		tryGenerate();
@@ -150,6 +152,36 @@ public class KeyManager {
 		} catch (InvalidKeySpecException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+	}
+
+	public void saveToPemFile(String filename) {
+		try {
+			doSaveToPemFile(filename);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	private void doSaveToPemFile(String filename) throws IOException {
+		
+		PrivateKey pvt = getKeyPair().getPrivate();
+		if (pvt != null) {
+			try (Writer out = new FileWriter(filename + ".key")) {
+				out.write("-----BEGIN RSA PRIVATE KEY-----\n");
+				out.write(encoder.encodeToString(pvt.getEncoded()));
+				out.write("\n-----END RSA PRIVATE KEY-----\n");
+			}
+		}
+		
+		PublicKey pub = getKeyPair().getPublic();
+		if (pub != null) {
+			try (Writer out = new FileWriter(filename + ".pub")) {
+				out.write("-----BEGIN RSA PUBLIC KEY-----\n");
+				out.write(encoder.encodeToString(pub.getEncoded()));
+				out.write("\n-----END RSA PUBLIC KEY-----\n");
+			}
 		}
 	}
 	

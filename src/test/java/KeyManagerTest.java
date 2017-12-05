@@ -119,7 +119,24 @@ public class KeyManagerTest {
 	public void testSaveToPemFile() {
 		km.generate();
 		assignKeys();
-		
+		buildFileName();
+		km.saveToPemFile(filename);
+		Path path = Paths.get(filename+".pub");
+		assertTrue(path.toFile().exists());
+		path = Paths.get(filename+".key");
+		assertTrue(path.toFile().exists());
+	}
+	
+	@Test 
+	public void testLoadFromPemFile() {
+		buildFileName();
+		km.generate();
+		assignKeys();
+		km.saveToFile(filename);
+		km = new KeyManager();
+		km.loadFromFile(filename);
+		assertEquals(privateKey, km.getKeyPair().getPrivate());
+		assertEquals(publicKey, km.getKeyPair().getPublic());
 	}
 	
 	@Test
